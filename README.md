@@ -86,3 +86,4 @@ Magic!!
 
 Function should always produce a value.
 
+[0]: #table-of-contents
