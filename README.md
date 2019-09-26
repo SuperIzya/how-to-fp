@@ -144,5 +144,5 @@ Another popular use case is calculations based on previous element(s), in other 
 
 [to top][0]
 
-[0]: #how-i-learned-not-to-worry-and-loved-fp-in-scala
+[0]: #how-i-learned-to-stop-worrying-and-love-fp-in-scala
 [RP]: https://en.wikipedia.org/wiki/Referential_transparency
