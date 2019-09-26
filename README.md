@@ -114,7 +114,7 @@ Since error is allowed as result, we can work with errors same way as with 'vali
 
 ![pure](./gifs/pure.gif)
 
-The concept of pure function is of the most importance in FP. My favorite example of one such function is arithmetical operator `+`:
+The concept of pure function is of the most importance in FP. My favorite example of one such function is arithmetic operator `+`:
 1. it does not change it arguments. After evaluating `2+3`, both `2` and `3` are the very same, they were not changed by the function
 1. it returns a value (always). Doesn't matter how many times the function is called, the result is  the same. The order of calls with different sets of arguments is also does not change the results of each individual evaluation.
 
@@ -124,22 +124,23 @@ def foo[T, R](x: T): R
 ```
 This will also help you later. Since it is pure function, you know that it does nothing to the arguments (you may use them again), and it always returns type `R`. So when you see application of the function in the code, you just need to see it's signature, without the need to dive into all the nuances of the implementation. Hello, [referential transparency][RP].
 
-Result of evaluation of pure function depends only on arguments, so no internal (or external via closure) variables should be in the function. Don't use loops. Use iteration and transformation over collection. Or, if it is impossible, write [tail recursive function](https://en.wikipedia.org/wiki/Tail_call).
+Result of evaluation of pure function depends only on arguments, so no internal (or external via closure) variables should be in the function. Don't use loops. Use iteration and transformation over collection. Or, if it is impossible, write recursive function with [tail call](https://en.wikipedia.org/wiki/Tail_call).
 
-For example our [sum](#magic) may be rewritten with[`@tailrec`](https://www.scala-lang.org/api/2.13.1/scala/annotation/tailrec.html) as follows:
+For example our function [sum](#magic) from example above may be rewritten with [@tailrec](https://www.scala-lang.org/api/2.13.1/scala/annotation/tailrec.html) as follows:
 ```scala
 def sum[T: Monoid](lst: List[T]): T = {
 	@tailrec
 	def sumRec(l: List[T], acc: T): T = {
-		if(l.isEmpty) acc
+		if(l.isEmpty) acc 
 		else sumRec(l.tail, Monoid[T].combine(acc, l.head))
 	}
-	
 	sumRec(lst, Modoid[T].empty)
 }
 ```
 
+Good explanation of tail recursion can be found [here](https://www.scala-exercises.org/scala_tutorial/tail_recursion)
 
+Another popular use case is calculations based on previous element(s), in other words state.
 
 [to top][0]
 
