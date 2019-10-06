@@ -73,8 +73,9 @@ def sum[T: Monoid, F[_]: Foldable](lst: F[T]): T = lst.foldLeft(Monoid[T].empty)
 ```
 and then, having the last function we can suddenly do this:
 ```scala
-implicit val fld = Foldable[List].compose[Option]
-sum(List(Some(1), Some(2), None, Some(4))) // 7
+type G[T] = List[Option[T]]
+implicit val fld: Foldable[G] = Foldable[List].compose[Option]
+sum[Int, G](List(Some(1), Some(2), None, Some(4))) // 7
 ```
 
 Magic!!
