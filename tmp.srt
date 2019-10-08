@@ -1,0 +1,12 @@
+0
+00:45:47,70 --> 00:45:49,00
+<font size="18px" family="Sans serif">Mandrake?</font>
+
+1
+00:45:49,10 --> 00:45:51,10
+<font size="18px" family="Sans serif">Yes, Jack?</font>
+
+2
+00:45:51,20 --> 00:45:55,00
+<font size="18px" family="Sans serif">Have you ever seen a commie
+using non-pure function?</font>
