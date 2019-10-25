@@ -160,12 +160,12 @@ Good explanation of tail recursion can be found [here](https://www.scala-exercis
 
 #### State
 
-Another popular use case is calculations based on previous element(s), in other words state (very thorough discussion of the state and it's use in FP can be found [here](https://typelevel.org/cats/datatypes/state.html)). This is very counterintuitive part of FP: the state should be outside. It is against the rules to introduce mutable variable inside function: the function becomes non-pure, it has side-effect built-in. The solution is (as almost always) in the return type. The function will receive state and return new state and result:
+Another popular use case is calculations based on previous element(s), in other words state. Very thorough discussion of the state and it's use in FP can be found [here](https://typelevel.org/cats/datatypes/state.html), so I will be very brief. This is very counterintuitive part of FP: the state of the automaton should be an outside parameter. But it is against the rules to introduce mutable variable inside function: the function becomes non-pure. With mutable state the function has side-effect built-in. The solution is (as almost always) in the type that will be returned. The function will receive state and return result **and** new state:
 
 ```scala
 type State = ???
-type Res = ???
-def foo(s: State): (State, Res) = ???
+type Result = ???
+def foo(s: State): (State, Result) = ???
 ```
 
 As you can see, within this implementation, `foo` is pure function, and given the same `State` will return essentially the same pair `(State, Res)`.
@@ -209,37 +209,79 @@ More about it [here](https://stackoverflow.com/questions/35384393/how-do-immutab
 
 > The impact of object creation is often overestimated, and can be offset by some of the efficiencies associated with immutable objects. These include decreased overhead due to garbage collection, and the elimination of code needed to protect mutable objects from corruption.
 
+[to top][0]
+
 ## Function - first class citizen
+
+![function](./gifs/function-fcz.gif)
+
 Each function has it's type, which consists of types of the arguments and type of the result:
+
 ```scala
 def foo(i: Int, d: Double): String = ??? // (Int, Double) => String
 def bar(b: BigInt): Boolean = ??? // BigInt => Boolean
 ```
 
-A function with a proper type can be passed to or returned from another function. Most probably you already have seen/used it. `Array.map`, `Array.sort`, etc. in JavaScript, C#, Scala, etc., all these functions in all these languages are accepting transformation/sort/etc. function as one of the parameters. If you've used one of those, you've used function as a first class citizen. And the next reasonable step is to assign function to a variable:
+A function with a proper type can be passed to or returned from another function. Most probably you already have seen/used it. `Array.map`, `Array.sort`, etc. in JavaScript, C#, Scala, etc., all these functions in all these languages are accepting transformation/sort/etc. function as one of the parameters. If you've used one of those, you've used function as a first class citizen. Functions like `Array.map` are called **Higher Order Functions**, because these functions are dealing with other functions either as arguments, or as result value (or both).
+
+And the next reasonable step is to assign function to a variable:
 
 ```scala
 val foo: (Int, Double) => String = (i, d) => s"$i $d"
 val baz: BigInt => Boolean = _.isValidInt
 ```
 
-
-
-
+[to top][0]
 
 ## Types
 
+
+
+There are two sorts of types in FP: **Data Type** and **Type Class**
+
+##### Data Type
+
+![types](./gifs/data-type.gif)
+
+Data type is a type to store data. With data type you describe measurement from sensor, payment, event or even some executable code (see [Function - is first class citizen](#function---is-first-class-citizen)). Usually `case class` is used to define this type. "Methods" for this type are defined either in [value class](https://docs.scala-lang.org/overviews/core/value-classes.html) or in [universal traits](https://docs.scala-lang.org/overviews/core/value-classes.html) (the trait doesn't have to extend `Any` but the methods should be [pure functions](#pure_functions)).
+
+##### Type Class
+
 ![types](./gifs/types.gif)
 
+Type class is an algebra data types. Type class interface defines some operations available on some data type. Usually it is **Higher-Kinded Type** (which only means that the `trait` has type-parameter: `trait Monoid[M]`) so that instance of the type class defines operations for one specific data type.
 
+So in most cases data type is just a way to pass some meaningful data, while type class holds all the know-how of how to handle this type.
 
+What are the benefits of this separation, one might ask. One obvious advantage is the ability to generalize the algorithms over wider range of type than with mere inheritance (see thorough explanation [here](https://typelevel.org/cats/typeclasses.html#type-classes-vs-subtyping)). Less obvious benefit arises from the *constrains* that this approach enforce on the developer. It enforces to think of the data type as chunk of data and nothing more. The algorithms become type-independent - all type-related know-how is encapsulated in the type class. And so, by designing the model in accordance with the types-duality (type class & data type), the code is separated to two distinct areas of **what** (algorithms) and **how** (type classes).
 
+So back to our example with `sum`, where we where with this implementation:
+
+```scala
+def sum[T](lst: List[T], m: Monoid[T]): T = lst.foldLeft(m.empty)(m.combine)
+```
+
+Here `m` is instance of class type for type `T` and contains needed operations for the algorithm (`empty` and `combine`). Obviously, `m` may be the same instance for all calls with the same type parameter `T`. So it's reasonable to move it to be implicit parameter:
+
+```scala
+def sum[T](lst: List[T])(implicit m: Monoid[T]): T = lst.foldLeft(m.empty)(m.combine)
+```
+
+which, with syntactic sugar, may be rewritten as:
+
+```scala
+def sum[T: Monoid](lst: List[T]): T = lst.foldLeft(Monoid[T].empty)(Monoid[T].combine)
+```
+
+More on this [here](https://typelevel.org/cats/typeclasses.html#a-note-on-syntax).
+
+[to top][0]
 
 ## Postpone effects
 
 ![postpone](./gifs/postpone.gif)
 
-
+As a result of the rules above, but also considered as one of the pillars of the FP is **postponing effects**. Think about it. When you use `Iterator[A].map`, you don't have even single value of type `A` yet, but still, you act as if you already have. What you loose here is that, after a `Iterator[_].map` you still have `Iterator`, or, in other words, you haven't left the context of the `Iterator`. In effect, you've built some computation for value(s) that doesn't exist yet (until somebody reads from the `Iterator`) and you don't know if you even going to get one (`Iterator` may be empty). And thus we have written some code, in context of the effect (iteration over the `Iterator`), that may or may not happen in some point in the future - **end of the world**.
 
 [to top][0]
 
