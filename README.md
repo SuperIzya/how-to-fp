@@ -14,6 +14,10 @@ In the following part I will _what??_ give
 * [Magic](#magic)
 * [Always produce result. No exceptions](#always-produce-result-no-exceptions)
 * [Pure functions](#pure-functions)
+* [Immutability](#immutability)
+* [Function - first class citizen](#function---first-class-citizen)
+* [Types](#types)
+* [Postpone effects](#postpone-effects)
 
 
 ## Why we choose functional programming?
