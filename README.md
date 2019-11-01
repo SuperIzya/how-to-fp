@@ -112,7 +112,16 @@ Functional approach not only better because it is functional, but also it is mor
 
 #### Exception is expensive
 
-Whenever exception is thrown, runtime have to rollback the stack, collect a lot of data along the way, while all the functional types just stops the following execution with the value (since it is absent).
+Whenever exception is thrown, runtime have to rollback the call stack till the closest appropriate `catch`  collecting a lot of data along the way, while, with functional approach, the execution chain just stops whenever any function returns an error:
+
+```scala
+def foo: Option[T]
+def bar(t: T): Option[T]
+
+foo.flatMap(bar).map(...)
+```
+
+In this example, if `foo` returns `None`, the `flatMap` is not called (see implementation of `Option`). If `foo` returns `Some`, but `bar` returns `None`, then the `map` would not run. As simple as that.
 
 #### Easier error handling
 
@@ -286,6 +295,14 @@ More on this [here](https://typelevel.org/cats/typeclasses.html#a-note-on-syntax
 ![postpone](./gifs/postpone.gif)
 
 As a result of the rules above, but also considered as one of the pillars of the FP is **postponing effects**. Think about it. When you use `Iterator[A].map`, you don't have even single value of type `A` yet, but still, you act as if you already have. What you loose here is that, after a `Iterator[_].map` you still have `Iterator`, or, in other words, you haven't left the context of the `Iterator`. In effect, you've built some computation for value(s) that doesn't exist yet (until somebody reads from the `Iterator`) and you don't know if you even going to get one (`Iterator` may be empty). And thus we have written some code, in context of the effect (iteration over the `Iterator`), that may or may not happen in some point in the future - **end of the world**.
+
+[to top][0]
+
+## Conclusion
+
+![conclusion](./gifs/conclusion.gif)
+
+I hope this article will help you to start understanding the concepts of FP, but as always, in order to become able to write functional code, or better yet to start thinking functional, you have to exercise (as with any other language), otherwise it will stay curios academic tricks not applicable to real-life problems.
 
 [to top][0]
 
