@@ -1,13 +1,10 @@
 # How I learned to stop worrying and love FP in Scala
 
-Since i've recently struggled trough understanding of the basics of FP,
-and since the most hard part was to start thinking functional, 
-i've decided to share some tips how to make first steps easier.  
+Since I've recently struggled trough understanding of the basics of FP, and since the hardest part was to start thinking functional, I've decided to share some tips how to make first steps easier.  
 
 ### Pillars of FP
 
-There are several concepts in functional programming, that once mastered, you're half way there into FP (the hard half).
-In the following part I will _what??_ give
+There are several major concepts in functional programming. And once you understand them, you're half way through.
 
 #### Table of contents
 * [Why we choose functional programming?](#why-we-choose-functional-programming)
@@ -24,21 +21,28 @@ In the following part I will _what??_ give
 
 ![Why FP](./gifs/types-algebras.gif)
 
-Apart from being strictly aesthetic and cool, there are major advantages to use FP:
+Functional programming is a programming paradigm based on [lambda calculus](https://en.wikipedia.org/wiki/Lambda_calculus), which is
+> ...formal system in mathematical logic for expressing computation...
+> It is a universal model of computation that can be used to simulate any Turing machine.
+
+There are major advantages to use FP:
 
 * Functional code is easy reasoning about due to:
-    * [referential transparency][RP] 
-    (gist: An expression is called referentially transparent if it can be replaced with its corresponding value without changing the program's behavior) which means in less fancy words that on any level it is easy to understand what's going on in the code
-    * types are more semantic //have more semantic meaning?//
-    * pure functions tend to be smaller than non pure (about pure functions later)
-    * functional code - means declarative code, which in turn means, that all imperative code will be separated from the algorithms.
+
+  * [referential transparency][RP]: a function is referential transparent if by replacing the function call in code by the result of evaluation of the function with current arguments (given that they are known), the behavior of the code wouldn't change. Function 
+
+    ```scala
+    def add(x: Int, y: Int): Int = x + y
+    ```
+
+    is referential transparent. Every call to this function in the code can be replace by its result. This also means that no matter the scale, it takes about the same amount of effort to understand the code.
+
+  * functional code - declarative code.
+
 * Fewer bugs due to:
     * code is easier to reason about (see above)
-    * since your code is much more like a mathematical model, the compiler will check your model, and the compilation will fail in case your model is not converging, or there are illegal (in current model) operations
-    * logic written with pure functions is easier to test
-* Easier to spot and deeper levels of abstractions due to when anything type-specific 
-is removed from the algorithms, the algorithms are left bare-boned, unobstructed. And then it is much simpler to spot patterns and abstractions in there.
-* It is always better to tell __what__ to do instead of __how__. Functional code tells computer __what__ to do ([declarative code](https://en.wikipedia.org/wiki/Declarative_programming)), while your regular C-like code is telling the machine __how__ to do what it should do ([imperative code](https://en.wikipedia.org/wiki/Imperative_programming)).
+    * since the code is much more like a mathematical model, the compiler can check it more thorough. The compilation will fail in case your model is not converging, or there are illegal (in current model) operations
+* It is almost always better to tell __what__ to do instead of __how__. By telling __what__ to do, you're using higher level of abstractions. Some smart people dedicated a lot of time and effort to implement the abstraction efficient and correct. In rare cases, when you need something better, you'll dedicate all the resources to make it the best way possible. You will not write your own web server, in case you need something special, and then it will become one of _core businesses_. Functional code tells computer __what__ to do ([declarative code](https://en.wikipedia.org/wiki/Declarative_programming)), while your regular C-like code is telling the machine __how__ to do what it should do ([imperative code](https://en.wikipedia.org/wiki/Imperative_programming)).
 
 [to top][0]
 
@@ -55,8 +59,8 @@ def sumInt(lst: List[Int]): Int = lst.foldLeft(0)(_ + _)
 def sumSet[A](lst: List[Set[A]]): Set[A] = lst.foldLeft(Set.empty[A])(_ union _)
 ```
 
-Both of these functions are the same except for the type-specific seed element and method for combining two elements.
-So let's get them out and pass this data as a parameter the algorithm:
+Both of these functions are the same except for the type-specific seed element and method for combining two elements. _Define Monoid_. _Monoid is mathematical Group_
+So let's get them out and pass this data as a parameter the algorithm (to the function `sum`):
 
 ```scala
 trait Monoid[T] {
@@ -84,18 +88,18 @@ and then, having the last implementation of `sum` we can suddenly do this:
 ```scala
 type G[T] = List[Option[T]]
 implicit val fld: Foldable[G] = Foldable[List].compose[Option]
-sum[Int, G](List(Some(1), Some(2), None, Some(4))) // 7
+sum[Int, G](List(Option(1), Option(2), None, Option(4))) // 7
 ```
 
 This may look like magic or gibberish (or both) , but I'll do my best to get you (at least closer) to understanding the whys and hows of this parlor trick. But do remember, this is a language, and as with any other language, you need to practice it if you want to think it.
 
 [to top][0]
 
-## Always produce result. No exceptions
+## Always produce result. Don't throw exceptions
 
 ![Result](./gifs/result.gif)
 
-Function should always produce a value. Whenever there is a possibility of non-value result (exception, void, undefined, null, etc.), it should be incorporated in the result type. Such types include but not limited to:
+Function should always produce a value. Exception is not thrown!!!. Whenever there is a possibility of non-value result (exception, void, undefined, null, etc.), it should be incorporated in the result type. Such types include but not limited to:
 ```scala
 Option[T]
 Try[T]
@@ -105,7 +109,7 @@ Future[T]
 ```
 And of course other such types may be introduced as aliases via `type` or as case-classes:
 ```scala
-type Result[T] = Either[String, T]
+type Result[T] = Either[Throwable, T]
 ```
 
 Functional approach not only better because it is functional, but also it is more robust in general case and in the edge cases gives more control over error handling to developer.
@@ -123,19 +127,21 @@ foo.flatMap(bar).map(...)
 
 In this example, if `foo` returns `None`, the `flatMap` is not called (see implementation of `Option`). If `foo` returns `Some`, but `bar` returns `None`, then the `map` would not run. As simple as that.
 
-#### Easier error handling
+#### Easier error processing
 
 Since error is allowed as result, we can work with errors same way as with 'valid' result, e.g. transform to default value, collect all errors from many executions, define retry strategy, etc. without excessive code branching as in case of exception/null/undefined based error-handling. 
 
 [to top][0]
 
-## Pure functions
+
+
+## Pure functions (move up)
 
 ![pure](./gifs/pure.gif)
 
 The concept of pure function is of the most importance in FP. My favorite example of one such function is arithmetic operator `+`:
-1. it does not change it arguments. After evaluating `2+3`, both `2` and `3` are the very same, they were not changed by the function
-1. it returns a value (always). Doesn't matter how many times the function is called, for the same arguments set the result is  the same. The order of calls with different sets of arguments is also does not change the results of each individual evaluation.
+1. It does not change it arguments. After evaluating `2+3`, both `2` and `3` are the very same, they were not changed by the function
+1. It returns a value (always). Doesn't matter how many times the function is called, for the same arguments set the result is  the same. The order of calls with different sets of arguments is also does not change the results of each individual evaluation.
 
 When starting writing pure function, write full signature:
 ```scala
@@ -183,13 +189,35 @@ def foo(s: State): (State, Result) = ???
 
 As you can see, within this implementation, `foo` is pure function, and given the same `State` will return essentially the same pair `(State, Res)`.
 
+Random generator.
+
+
+
+
+
 [to top][0]
+
+
 
 ## Immutability
 
 ![immutability](./gifs/immutability.gif)
 
-Another cornerstone of FP is immutability. Think again of `2 + 3`. Neither `2`, nor `3` can't suddenly change to something else (same goes to the result `5`). Each pure function returns new instance. Except for when it returns `case object` or some `val`, pure function __always__ returns new instance. Arguments are __never__ mutated.
+Another cornerstone of FP is immutability. Think again of `+`:
+
+```scala
+def sum(x: Int, y: Int): Int = x + y
+```
+
+Neither `x`, nor y can't suddenly change to something else (same goes to the result). Each pure function returns new instance. Except for when it returns `object` (singleton) or `val`, pure function __always__ returns new immutable object. NOT!!! Arguments are __never__ mutated.
+
+
+
+No to object transformation. 
+
+
+
+
 
 In the inner function `sumRec` (from recursion example), first argument is `List[T]` and the second is accumulator.
 
@@ -224,6 +252,8 @@ More about it [here](https://stackoverflow.com/questions/35384393/how-do-immutab
 
 [to top][0]
 
+
+
 ## Function - first class citizen
 
 ![function](./gifs/function-fcz.gif)
@@ -246,9 +276,9 @@ val baz: BigInt => Boolean = _.isValidInt
 
 [to top][0]
 
+
+
 ## Types
-
-
 
 There are two sorts of types in FP: **Data Type** and **Type Class**
 
@@ -262,7 +292,7 @@ Data type is a type to store data. With data type you describe measurement from 
 
 ![types](./gifs/types.gif)
 
-Type class is an algebra data types. Type class interface defines some operations available on some data type. Usually it is **Higher-Kinded Type** (which only means that the `trait` has type-parameter: `trait Monoid[M]`) so that instance of the type class defines operations for one specific data type.
+Type class is an algebra for data type. Type class interface defines some operations available on some data type. Usually it is **Higher-Kinded Type** (which only means that the `trait` has type-parameter: `trait Monoid[M]`) so that instance of the type class defines operations for one specific data type.
 
 So in most cases data type is just a way to pass some meaningful data, while type class holds all the know-how of how to handle this type.
 
@@ -290,6 +320,8 @@ More on this [here](https://typelevel.org/cats/typeclasses.html#a-note-on-syntax
 
 [to top][0]
 
+
+
 ## Postpone effects
 
 ![postpone](./gifs/postpone.gif)
@@ -297,6 +329,8 @@ More on this [here](https://typelevel.org/cats/typeclasses.html#a-note-on-syntax
 As a result of the rules above, but also considered as one of the pillars of the FP is **postponing effects**. Think about it. When you use `Iterator[A].map`, you don't have even single value of type `A` yet, but still, you act as if you already have. What you loose here is that, after a `Iterator[_].map` you still have `Iterator`, or, in other words, you haven't left the context of the `Iterator`. In effect, you've built some computation for value(s) that doesn't exist yet (until somebody reads from the `Iterator`) and you don't know if you even going to get one (`Iterator` may be empty). And thus we have written some code, in context of the effect (iteration over the `Iterator`), that may or may not happen in some point in the future - **end of the world**.
 
 [to top][0]
+
+
 
 ## Conclusion
 
