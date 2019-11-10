@@ -266,7 +266,7 @@ val baz: BigInt => Boolean = _.isValidInt
 
 ## Types
 
-There are two sorts of types in FP: **Data Type** and **Type Class**
+There are two sorts of types in FP: **Data Type** and **Type Class**.
 
 ##### Data Type
 
@@ -274,41 +274,99 @@ Data type is a type to store data. With data type you describe measurement from 
 
 ##### Type Class
 
-![types](./gifs/types.gif)
+Type class defines algebra (set of operations) for particular data type. Type class interface defines some operations available on some data type. Usually it is **Higher-Kinded Type** (which only means that the `trait` has type-parameter: `trait Monoid[M]`) so that instance of the type class defines operations for one specific data type.
 
-Type class is an algebra for data type. Type class interface defines some operations available on some data type. Usually it is **Higher-Kinded Type** (which only means that the `trait` has type-parameter: `trait Monoid[M]`) so that instance of the type class defines operations for one specific data type.
+In most cases data type is just a way to pass some meaningful data, while type class holds all the know-how of how to handle this type.
 
-So in most cases data type is just a way to pass some meaningful data, while type class holds all the know-how of how to handle this type.
+What are the benefits of this separation, one might ask. One obvious advantage is the ability to generalize the algorithms over wider range of type than with mere inheritance (see thorough explanation [here](https://typelevel.org/cats/typeclasses.html#type-classes-vs-subtyping)). Less obvious benefit arises from the *constrains* that this approach enforce on the developer. It enforces to think of the data type as chunk of data and nothing more. The algorithms become type-independent - all type-related know-how are encapsulated in the type class. And so, by designing the model in accordance with the types-duality (type class & data type), the code is separated to two distinct areas of **what** (algorithms) and **how** (type classes).
 
-What are the benefits of this separation, one might ask. One obvious advantage is the ability to generalize the algorithms over wider range of type than with mere inheritance (see thorough explanation [here](https://typelevel.org/cats/typeclasses.html#type-classes-vs-subtyping)). Less obvious benefit arises from the *constrains* that this approach enforce on the developer. It enforces to think of the data type as chunk of data and nothing more. The algorithms become type-independent - all type-related know-how is encapsulated in the type class. And so, by designing the model in accordance with the types-duality (type class & data type), the code is separated to two distinct areas of **what** (algorithms) and **how** (type classes).
-
-So back to our example with `sum`, where we where with this implementation:
+To illustrate this, let's define simple payment system:
 
 ```scala
-def sum[T](lst: List[T], m: Monoid[T]): T = lst.foldLeft(m.empty)(m.combine)
+trait Currency
+case object Dollar extends Currency
+case object Pound extends Currency
+case class Purchase(amount: Double, currency: Currency)
 ```
 
-Here `m` is instance of class type for type `T` and contains needed operations for the algorithm (`empty` and `combine`). Obviously, `m` may be the same instance for all calls with the same type parameter `T`. So it's reasonable to move it to be implicit parameter:
+Before we bill the user, it is better to collect all payments per each currency and charge once per currence. It can be achieved by quite simple folding:
 
 ```scala
-def sum[T](lst: List[T])(implicit m: Monoid[T]): T = lst.foldLeft(m.empty)(m.combine)
+def collect(charges: List[Purchase]): Map[Currency, Purchase] = {
+    def add(a: Purchase, b: Purchase): Purchase = a.copy(amount = a.amount + b.amount)
+	def empty(c: Currency): Purchase = Purchase(0.0, c)    
+	charges.foldLeft(Map.empty[Currency, Purchase]){
+        (m, p) => m + (p.currency -> add(p, m.getOrElse(p.currency, empty(p.currency)))
+    }
+}
 ```
 
-which, with syntactic sugar, may be rewritten as:
+On the other hand, we will have measurements from different parts of the system:
 
 ```scala
-def sum[T: Monoid](lst: List[T]): T = lst.foldLeft(Monoid[T].empty)(Monoid[T].combine)
+case class Measurements(unit: String, data: Double)
 ```
 
-More on this [here](https://typelevel.org/cats/typeclasses.html#a-note-on-syntax).
+These measurements may be in completely different units (number of clicks vs. avg time on page) or in different scales - KB/MB. In this case the measurement should be separated by units, but transformed to common scale. The function `add` for `Measurement` will be a little different:
+
+```scala
+def scale(a: Measurement): Measurement = a.unit.splitAt(1) match {
+    case ("K", u) => Measurement(u, a.data / 1000)
+    case ("M", u) => Measurement(u, a.data / 1000000)
+}
+def add(a: Measurement, b: Measurement): Measurement = {
+    val sa = scale(a)
+    sa.copy(amount = sa.amount + scale(b).amount)
+}
+```
+
+With this additions the `collect` can be repeated for `Measurement`. But let's try and not repeat ourselves. First let's define the number of operations needed for `collect`:
+
+```scala
+trait Collectable[T, Key] {
+    def add(a: T, b: T): T
+    def empty(key: Key): T
+    def key(a: T): Key
+}
+```
+
+With this trait `collect` can be transformed to:
+
+```scala
+def collect[T, Key](lst: List[T], C: Collectable[T, Key]): Map[Key, T] = 
+	lst.foldLeft(Map.empty[Key, T]){
+        (m, t) => {
+            val key = C.key(t)
+            m + (key -> C.add(m.getOrElse(key, C.empty(key)), t))
+        }
+	}
+```
+
+All is left is to define `Collectable` for both `Measurement` and `Purchase`:
+
+```scala
+val purColl = new Collectable[Purchase, Currency] {
+    def add(a: Purchase, b: Purchase): Purchase = a.copy(amount = a.amount + b.amount)
+    def empyt(key: Currency): Purchase = Purchase(0.0, key)
+    def key(a: Purchase): Currency = a.currency
+}
+val measColl = new Collectable[Measurement, String] {
+    def scale(m: Measurement): Measurement = ??? // see above
+    def add(a: Measurement, b: Measurement): Measurement = ??? // see above
+    def empty(key: String): Measurement = scale(Measurement(key, 0.0))
+    def key(m: Measurement): String = m.unit
+}
+```
+
+
+
+More on this can be found [here](https://typelevel.org/cats/typeclasses.html#a-note-on-syntax).
 
 [to top][0]
 
 
 
 ## Postpone effects
-
-![postpone](./gifs/postpone.gif)
 
 As a result of the rules above, but also considered as one of the pillars of the FP is **postponing effects**. Think about it. When you use `Iterator[A].map`, you don't have even single value of type `A` yet, but still, you act as if you already have. What you loose here is that, after a `Iterator[_].map` you still have `Iterator`, or, in other words, you haven't left the context of the `Iterator`. In effect, you've built some computation for value(s) that doesn't exist yet (until somebody reads from the `Iterator`) and you don't know if you even going to get one (`Iterator` may be empty). And thus we have written some code, in context of the effect (iteration over the `Iterator`), that may or may not happen in some point in the future - **end of the world**.
 
