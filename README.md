@@ -216,48 +216,23 @@ Since error is allowed as result, we can work with errors same way as with 'vali
 
 ## Immutability
 
-Another cornerstone of FP is immutability. Think again of `+`:
+Another cornerstone of FP is immutability. Functional paradigm does not allow to change values. As I've mentioned earlier, absolutely functional code will be absolutely useless, the same is with immutability. The goal is not to write 100% immutable code (although this is good), but to limit mutable code to some reservations, which should be thoroughly tested. Also, these places are the first suspects for bugs.
 
-```scala
-def sum(x: Int, y: Int): Int = x + y
-```
+BTW: while writing immutable code, you will also write [pure functions](#pure_functions).
 
-Neither `x`, nor y can't suddenly change to something else (same goes to the result). Each pure function returns new instance. Except for when it returns `object` (singleton) or `val`, pure function __always__ returns new immutable object. NOT!!! Arguments are __never__ mutated.
-
-
-
-No to object transformation. 
-
-
-
-
-
-In the inner function `rec` (from recursion example), first argument is `List[T]` and the second is accumulator.
-
-```scala
-@tailrec
-def rec(l: List[T], acc: T): T = {
-    if(l.isEmpty) acc 
-    else sumRec(l.tail, Monoid[T].combine(acc, l.head))
-}
-rec(lst, Modoid[T].empty)
-```
-
-The original list (passed to enclosing function `sum`) is not changes, nor does any of the sub-lists. This is also true to accumulator. 
-
-Immutability of arguments and result has it advantages:
+Immutability has it's advantages:
 
 * the same instance can be shared indefinitely. One of the consequences of _this_ fact is that parallel access is trivial - no need to sync since only read is possible
 
-* the order of functions calls depends only on types (they should match, dah!), since each function is pure function and the result depends only on arguments passed. This also means, that compiler may deduce a call tree and run some evaluations in parallel.
+* since each function is (should be) pure function and the result depends only on arguments passed, the order of the calls important only if some function uses results of evaluation of another functions. This also means, that compiler may deduce a call tree and run some evaluations in parallel.
 
 One may argue that always creating new objects adds pressure to the memory (in terms of usage and consumption) and to garbage collector. I will argue with that with the facts that:
 
 * most of these immutable instances are short-lived instances. They are forgotten during the first generation (Gen-1). It is the mutable instances that usually survive to Gen-2. As for immutable long-live instances, most of those are application-level constants or singleton instances that lives through to Gen-3.
 
-* As mentioned above, when using immutable values, sharing them became trivial. No need neither for defensive copy-on-share, nor for synchronization of access. Which is beneficial both for memory and GC.
+* As mentioned above, when using immutable values, sharing them became trivial. No need neither for defensive copy-on-share, nor for synchronization of access. Which is beneficial for code complexity, footprint, memory usage and GC.
 
-* And as a last argument (in this article) in favor for immutability, since immutable object doesn't mutate (dah, again), GC does not need to take it as root on the next scan. 
+* And as a last argument (in this article) in favor for immutability, since immutable object doesn't mutate, GC does not need to take it as root on the next scan, again less work for GC. 
 
 More about it [here](https://stackoverflow.com/questions/35384393/how-do-immutable-objects-help-decrease-overhead-due-to-garbage-collection) and [here](https://www.reddit.com/r/programming/comments/1i3738/is_immutability_good_for_gc_performance/). And, from Oracle [docs](https://docs.oracle.com/javase/tutorial/essential/concurrency/immutable.html):
 
@@ -268,8 +243,6 @@ More about it [here](https://stackoverflow.com/questions/35384393/how-do-immutab
 
 
 ## Function - first class citizen
-
-![function](./gifs/function-fcz.gif)
 
 Each function has it's type, which consists of types of the arguments and type of the result:
 
@@ -296,8 +269,6 @@ val baz: BigInt => Boolean = _.isValidInt
 There are two sorts of types in FP: **Data Type** and **Type Class**
 
 ##### Data Type
-
-![types](./gifs/data-type.gif)
 
 Data type is a type to store data. With data type you describe measurement from sensor, payment, event or even some executable code (see [Function - is first class citizen](#function---is-first-class-citizen)). Usually `case class` is used to define this type. "Methods" for this type are defined either in [value class](https://docs.scala-lang.org/overviews/core/value-classes.html) or in [universal traits](https://docs.scala-lang.org/overviews/core/value-classes.html) (the trait doesn't have to extend `Any` but the methods should be [pure functions](#pure_functions)).
 
