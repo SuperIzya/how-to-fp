@@ -1,6 +1,12 @@
 # How I learned to stop worrying and love FP in Scala
 
+![pure](./gifs/pure.gif)
+
 Since I've recently struggled trough understanding of the basics of FP, and since the hardest part was to start thinking functional, I've decided to share some tips how to make first steps easier.  
+
+#### Disclaimer
+
+Among first thing to learn about functional programming, is that it is programming without side-effects and IO. Well, obviously absolutely functional program will be absolutely useless, so I wouldn't declare FP the new silver bullet, but it is a good way to implement complex business-logic. And in any case there are a several libraries (like [Cats](Cats), or [Scalaz](Scalaz)) that allow you to write all your code in functional paradigm, but this topic is outside of the agenda of the current article.
 
 ### Pillars of FP
 
@@ -19,9 +25,8 @@ There are several major concepts in functional programming. And once you underst
 
 ## Why we choose functional programming?
 
-![Why FP](./gifs/types-algebras.gif)
-
 Functional programming is a programming paradigm based on [lambda calculus](https://en.wikipedia.org/wiki/Lambda_calculus), which is
+
 > ...formal system in mathematical logic for expressing computation...
 > It is a universal model of computation that can be used to simulate any Turing machine.
 
@@ -29,149 +34,122 @@ There are major advantages to use FP:
 
 * Functional code is easy reasoning about due to:
 
-  * [referential transparency][RP]: a function is referential transparent if by replacing the function call in code by the result of evaluation of the function with current arguments (given that they are known), the behavior of the code wouldn't change. Function 
+  * [referential transparency][RP]: a function is referential transparent if by replacing the function call in code by the result of evaluation of the function (given that the arguments are known), the behavior of the code wouldn't change. 
 
-    ```scala
-    def add(x: Int, y: Int): Int = x + y
-    ```
-
-    is referential transparent. Every call to this function in the code can be replace by its result. This also means that no matter the scale, it takes about the same amount of effort to understand the code.
+    Function `def add(x: Int, y: Int): Int = x + y` is referentially transparent. Every call to this function in the code can be replace by its result. It is easier to understand code, that uses thees functions. This also means that no matter the scale, it takes about the same amount of effort to understand the code.
 
   * functional code - declarative code.
 
 * Fewer bugs due to:
     * code is easier to reason about (see above)
     * since the code is much more like a mathematical model, the compiler can check it more thorough. The compilation will fail in case your model is not converging, or there are illegal (in current model) operations
-* It is almost always better to tell __what__ to do instead of __how__. By telling __what__ to do, you're using higher level of abstractions. Some smart people dedicated a lot of time and effort to implement the abstraction efficient and correct. In rare cases, when you need something better, you'll dedicate all the resources to make it the best way possible. You will not write your own web server, in case you need something special, and then it will become one of _core businesses_. Functional code tells computer __what__ to do ([declarative code](https://en.wikipedia.org/wiki/Declarative_programming)), while your regular C-like code is telling the machine __how__ to do what it should do ([imperative code](https://en.wikipedia.org/wiki/Imperative_programming)).
+    
+* It is almost always better to tell __what__ to do instead of __how__. By telling __what__ to do, you're using higher level of abstractions. Smart people dedicated a lot of time and effort to implement the abstraction in efficient, precise and correct way. In rare cases, when you need something better, you'll dedicate all the resources to make it the best way possible. You will not write your own web server just for home page. But in case you need something special, it will become one of _core businesses_. 
+
+    Functional code tells computer __what__ to do ([declarative code](https://en.wikipedia.org/wiki/Declarative_programming)), while your regular C-like code is telling the machine __how__ to do what it should do ([imperative code](https://en.wikipedia.org/wiki/Imperative_programming)).
 
 [to top][0]
 
 ## Magic
 
-![magic](./gifs/magic.gif)
+I felt in love with functional paradigm in Scala because of the ability to build type-independent algorithms on simple cases, and then, with a pinch of magic dust, use totally unexpected types in those algorithms. All of this with static type-safety, compile-time optimizations and other goodies.
 
-(For more complete example [see here](https://typelevel.org/cats/typeclasses.html))
+I will provide a short example here and i will give a sketchy explanation also. My hopes are, that after reading this article, the reader will be able to understand the example fully (since it is very simple). 
 
-Let's say we have two functions:
+Given, with functional library [Cats](Cats), function `all` defined as:
 
 ```scala
-def sumInt(lst: List[Int]): Int = lst.foldLeft(0)(_ + _)
-def sumSet[A](lst: List[Set[A]]): Set[A] = lst.foldLeft(Set.empty[A])(_ union _)
+import cats.{Monoid, Foldable}
+import cats.implicits._
+def all[T: Monoid, F[_]: Foldable](lst: F[T]): T = lst.foldLeft(Monoid[T].empty)(_ |+| _)
 ```
 
-Both of these functions are the same except for the type-specific seed element and method for combining two elements. _Define Monoid_. _Monoid is mathematical Group_
-So let's get them out and pass this data as a parameter the algorithm (to the function `sum`):
+which allows us to use it as:
+
+```scala
+all(List(1, 2, 3, 4)) // 10
+all(List(Set(1, 2, 3), Set(3, 4), Set(5))) // Set(1, 2, 3, 4, 5)
+```
+
+Then, let's define new type
+
+```scala
+type G[T] = List[Option[T]]
+```
+
+Then, with a pinch of magic, we can use the `all` function with this new type:
+
+```scala
+implicit val fld: Foldable[G] = Foldable[List].compose[Option]
+all[Int, G](List(Option(1), Option(2), None, Option(4))) // 7
+```
+
+For more complete example [see here](https://typelevel.org/cats/typeclasses.html), but let's say we have two functions:
+
+```scala
+def allInt(lst: List[Int]): Int = lst.foldLeft(0)(_ + _)
+def allSet[A](lst: List[Set[A]]): Set[A] = lst.foldLeft(Set.empty[A])(_ union _)
+```
+
+Both of these functions are the same except for the type-specific seed element and a method for combining two elements. In mathematics there is a special name for these pairs - [Groups](https://en.wikipedia.org/wiki/Group_(mathematics)). In FP they are called _Monoid_.
+So let's get them out and pass this data as a parameter the algorithm (to the function `all`):
 
 ```scala
 trait Monoid[T] {
   def empty: T
   def combine(x: T, y: T): T
 }
-def sum[T](lst: List[T], m: Monoid[T]): T = lst.foldLeft(m.empty)(m.combine)
+def all[T](lst: List[T], m: Monoid[T]): T = lst.foldLeft(m.empty)(m.combine)
 ```
 or with functional library [Cats][Cats] and further optimizations:
 
 ```scala
 import cats.Monoid
 import cats.implicits._
-def sum[T: Monoid](lst: List[T]): T = lst.foldLeft(Monoid[T].empty)(_ |+| _)
+def all[T: Monoid](lst: List[T]): T = lst.foldLeft(Monoid[T].empty)(_ |+| _)
 ```
 
-and with further abstraction:
+Since in the function we need only `foldLeft`, `List[T]` can be replaced with further abstraction:
 
 ```scala
 import cats.{Monoid, Foldable}
 import cats.implicits._
-def sum[T: Monoid, F[_]: Foldable](lst: F[T]): T = lst.foldLeft(Monoid[T].empty)(_ |+| _)
+def all[T: Monoid, F[_]: Foldable](lst: F[T]): T = lst.foldLeft(Monoid[T].empty)(_ |+| _)
 ```
-and then, having the last implementation of `sum` we can suddenly do this:
-```scala
-type G[T] = List[Option[T]]
-implicit val fld: Foldable[G] = Foldable[List].compose[Option]
-sum[Int, G](List(Option(1), Option(2), None, Option(4))) // 7
-```
-
-This may look like magic or gibberish (or both) , but I'll do my best to get you (at least closer) to understanding the whys and hows of this parlor trick. But do remember, this is a language, and as with any other language, you need to practice it if you want to think it.
-
 [to top][0]
 
-## Always produce result. Don't throw exceptions
+## Pure functions
 
-![Result](./gifs/result.gif)
-
-Function should always produce a value. Exception is not thrown!!!. Whenever there is a possibility of non-value result (exception, void, undefined, null, etc.), it should be incorporated in the result type. Such types include but not limited to:
-```scala
-Option[T]
-Try[T]
-JsResult[T]
-Future[T]
-//etc.
-```
-And of course other such types may be introduced as aliases via `type` or as case-classes:
-```scala
-type Result[T] = Either[Throwable, T]
-```
-
-Functional approach not only better because it is functional, but also it is more robust in general case and in the edge cases gives more control over error handling to developer.
-
-#### Exception is expensive
-
-Whenever exception is thrown, runtime have to rollback the call stack till the closest appropriate `catch`  collecting a lot of data along the way, while, with functional approach, the execution chain just stops whenever any function returns an error:
-
-```scala
-def foo: Option[T]
-def bar(t: T): Option[T]
-
-foo.flatMap(bar).map(...)
-```
-
-In this example, if `foo` returns `None`, the `flatMap` is not called (see implementation of `Option`). If `foo` returns `Some`, but `bar` returns `None`, then the `map` would not run. As simple as that.
-
-#### Easier error processing
-
-Since error is allowed as result, we can work with errors same way as with 'valid' result, e.g. transform to default value, collect all errors from many executions, define retry strategy, etc. without excessive code branching as in case of exception/null/undefined based error-handling. 
-
-[to top][0]
-
-
-
-## Pure functions (move up)
-
-![pure](./gifs/pure.gif)
-
-The concept of pure function is of the most importance in FP. My favorite example of one such function is arithmetic operator `+`:
-1. It does not change it arguments. After evaluating `2+3`, both `2` and `3` are the very same, they were not changed by the function
-1. It returns a value (always). Doesn't matter how many times the function is called, for the same arguments set the result is  the same. The order of calls with different sets of arguments is also does not change the results of each individual evaluation.
+The concept of pure function is of the most importance in FP. My favorite example of one such function is arithmetic operator `+`. It produces new instance based on arguments and it does only this. It does not change passed objects (which in itself is very bad habit), nor does it change or use some hidden data to produce results. 
 
 When starting writing pure function, write full signature:
 ```scala
 def foo[T, R](x: T): R
 ```
-This will also help you later: since it is pure function, you know that it does nothing to the arguments (you may use them again), and it always returns value of type `R`. So when you see application of the function in the code, in order to get the idea what is going on here, you just need to see it's signature, without the need to dive into all the nuances of the implementation (hello, [referential transparency][RP]).
-
-Result of evaluation of pure function depends only on arguments, so no internal (or external via closure) variables should be in the function. 
+This will also help you later: since it is pure function, you know that it does nothing to the arguments (you may use them again), and it always returns value of type `R`. So when you see application of the function in the code, in order to get the idea what is going on here, you just need to see it's signature, without the need to dive into all the nuances of the implementation ([referential transparency][RP]).
 
 #### No loops. 
 Loops are essentially imperative constructions, which also ties via closure internal mutable(!) variable to the algorithm inside it. 
 
-Use iteration and transformation over collection. Both standard library and functional libraries ([Cats][Cats], [Scalaz](https://scalaz.github.io), etc.) have many specialized functions like `map`, `filter`, `fold`, etc. Among many benefits of using these functions are:
+Use iteration and transformation over collection. Both standard library and functional libraries ([Cats][Cats], [Scalaz](Scalaz), etc.) have many specialized functions like `map`, `filter`, `fold`, etc. Among many benefits of using these functions are:
 
-* increased readability of the code
+* increased readability of the code - explicit names of the functions
 * functional (declarative) way of iterating over elements
 * for some types there can be more robust implementation of the same iterative function
 * some non-collection types implement the same functions (like `map` for `Option`) with the same meaning 
 
 Only when you have no other chose left, write recursive function with [tail call][TailCall]. This kind of recursions is stack safe, since it is transformed by the compiler to loop (oh irony, but also an example of [postponing the effects](#postpone_effects) - another perk of FP). BTW, all the library functions use [tail call][TailCall] recursions under the hood.
 
-The function [sum](#magic) from example above may be rewritten with [@tailrec](https://www.scala-lang.org/api/2.13.1/scala/annotation/tailrec.html) as follows:
+The function [all](#magic) from example above may be rewritten with [@tailrec](https://www.scala-lang.org/api/2.13.1/scala/annotation/tailrec.html) as follows:
 ```scala
-def sum[T: Monoid](lst: List[T]): T = {
+def all[T: Monoid](lst: List[T]): T = {
+    val M = Monoid[T]
 	@tailrec
-	def sumRec(l: List[T], acc: T): T = {
+	def rec(l: List[T], acc: T): T = {
 		if(l.isEmpty) acc 
-		else sumRec(l.tail, Monoid[T].combine(acc, l.head))
+		else rec(l.tail, M.combine(acc, l.head))
 	}
-	sumRec(lst, Modoid[T].empty)
+	rec(lst, M.empty)
 }
 ```
 
@@ -179,7 +157,7 @@ Good explanation of tail recursion can be found [here](https://www.scala-exercis
 
 #### State
 
-Another popular use case is calculations based on previous element(s), in other words state. Very thorough discussion of the state and it's use in FP can be found [here](https://typelevel.org/cats/datatypes/state.html), so I will be very brief. This is very counterintuitive part of FP: the state of the automaton should be an outside parameter. But it is against the rules to introduce mutable variable inside function: the function becomes non-pure. With mutable state the function has side-effect built-in. The solution is (as almost always) in the type that will be returned. The function will receive state and return result **and** new state:
+Another popular use case is calculations based on previous element(s), in other words state. Very thorough discussion of the state and it's use in FP can be found [here](https://typelevel.org/cats/datatypes/state.html), so I will be very brief. This is very counterintuitive part of FP: the state of the [Finite-State-Machine](https://en.wikipedia.org/wiki/Finite-state_machine) should be an outside parameter. But it is against the rules to introduce mutable variable inside function since the function becomes non-pure. With mutable state the function has side-effect built-in. The solution is (as almost always) in the type that will be returned. The function will receive state and return result **and** new state:
 
 ```scala
 type State = ???
@@ -189,7 +167,7 @@ def foo(s: State): (State, Result) = ???
 
 As you can see, within this implementation, `foo` is pure function, and given the same `State` will return essentially the same pair `(State, Res)`.
 
-Random generator.
+__Random generator.???!!!!__
 
 
 
@@ -197,11 +175,46 @@ Random generator.
 
 [to top][0]
 
+## Always produce result. No exceptions.
 
+Function should always produce a value. Exception is not thrown. Whenever there is a possibility of non-value result (exception, void, undefined, null, etc.), it should be incorporated in the result type. Such types include but not limited to:
+
+```scala
+Option[T]
+Try[T]
+JsResult[T]
+Future[T]
+//etc.
+```
+
+And of course other such types may be introduced as aliases via `type` or as case-classes:
+
+```scala
+type Result[T] = Either[Throwable, T]
+```
+
+Functional approach not only better because it is functional, but also it is more robust in general case and in the edge cases gives more control over error handling to developer.
+
+#### Throwing exception is expensive
+
+Whenever exception is thrown, runtime have to rollback the call stack till the closest appropriate `catch`  collecting a lot of data along the way, while, with functional approach, the execution chain just stops whenever any function returns an "error":
+
+```scala
+def foo: Result[T]
+def bar(t: T): Result[T]
+
+foo.flatMap(bar).map(...)
+```
+
+In this example, if `foo` returns `Left`, the `flatMap` is not evaluated (see implementation of `Either`), and neither is the rest of the chain. If `foo` returns `Right`, but `bar` returns `Left`, then the `map` would not run. As simple as that.
+
+#### Easier error processing
+
+Since error is allowed as result, we can work with errors same way as with 'valid' result, e.g. transform to default value, collect all errors from many executions, define retry strategy, etc. without excessive code branching as in case of exception/null/undefined based error-handling. 
+
+[to top][0]
 
 ## Immutability
-
-![immutability](./gifs/immutability.gif)
 
 Another cornerstone of FP is immutability. Think again of `+`:
 
@@ -219,15 +232,15 @@ No to object transformation.
 
 
 
-In the inner function `sumRec` (from recursion example), first argument is `List[T]` and the second is accumulator.
+In the inner function `rec` (from recursion example), first argument is `List[T]` and the second is accumulator.
 
 ```scala
 @tailrec
-def sumRec(l: List[T], acc: T): T = {
+def rec(l: List[T], acc: T): T = {
     if(l.isEmpty) acc 
     else sumRec(l.tail, Monoid[T].combine(acc, l.head))
 }
-sumRec(lst, Modoid[T].empty)
+rec(lst, Modoid[T].empty)
 ```
 
 The original list (passed to enclosing function `sum`) is not changes, nor does any of the sub-lists. This is also true to accumulator. 
@@ -346,3 +359,4 @@ All images are taken from movie [Dr. Strangelove or: How I Learned to Stop Worry
 [RP]: https://en.wikipedia.org/wiki/Referential_transparency
 [Cats]: https://typelevel.org/cats/
 [TailCall]: https://en.wikipedia.org/wiki/Tail_call
+[Scalaz]: https://scalaz.github.io
