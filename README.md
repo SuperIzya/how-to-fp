@@ -143,13 +143,13 @@ Only when you have no other chose left, write recursive function with [tail call
 The function [all](#magic) from example above may be rewritten with [@tailrec](https://www.scala-lang.org/api/2.13.1/scala/annotation/tailrec.html) as follows:
 ```scala
 def all[T: Monoid](lst: List[T]): T = {
-    val M = Monoid[T]
-	@tailrec
-	def rec(l: List[T], acc: T): T = {
-		if(l.isEmpty) acc 
-		else rec(l.tail, M.combine(acc, l.head))
-	}
-	rec(lst, M.empty)
+  val M = Monoid[T]
+  @tailrec
+  def rec(l: List[T], acc: T): T = {
+    if(l.isEmpty) acc 
+	else rec(l.tail, M.combine(acc, l.head))
+  }
+  rec(lst, M.empty)
 }
 ```
 
@@ -293,11 +293,11 @@ Before we bill the user, it is better to collect all payments per each currency 
 
 ```scala
 def collect(charges: List[Purchase]): Map[Currency, Purchase] = {
-    def add(a: Purchase, b: Purchase): Purchase = a.copy(amount = a.amount + b.amount)
-	def empty(c: Currency): Purchase = Purchase(0.0, c)    
-	charges.foldLeft(Map.empty[Currency, Purchase]){
-        (m, p) => m + (p.currency -> add(p, m.getOrElse(p.currency, empty(p.currency)))
-    }
+  def add(a: Purchase, b: Purchase): Purchase = a.copy(amount = a.amount + b.amount)
+  def empty(c: Currency): Purchase = Purchase(0.0, c)    
+  charges.foldLeft(Map.empty[Currency, Purchase]){
+    (m, p) => m + (p.currency -> add(p, m.getOrElse(p.currency, empty(p.currency)))
+  }
 }
 ```
 
@@ -311,12 +311,12 @@ These measurements may be in completely different units (number of clicks vs. av
 
 ```scala
 def scale(a: Measurement): Measurement = a.unit.splitAt(1) match {
-    case ("K", u) => Measurement(u, a.data / 1000)
-    case ("M", u) => Measurement(u, a.data / 1000000)
+  case ("K", u) => Measurement(u, a.data / 1000)
+  case ("M", u) => Measurement(u, a.data / 1000000)
 }
 def add(a: Measurement, b: Measurement): Measurement = {
-    val sa = scale(a)
-    sa.copy(amount = sa.amount + scale(b).amount)
+  val sa = scale(a)
+  sa.copy(amount = sa.amount + scale(b).amount)
 }
 ```
 
@@ -324,9 +324,9 @@ With this additions the `collect` can be repeated for `Measurement`. But let's t
 
 ```scala
 trait Collectable[T, Key] {
-    def add(a: T, b: T): T
-    def empty(key: Key): T
-    def key(a: T): Key
+  def add(a: T, b: T): T
+  def empty(key: Key): T
+  def key(a: T): Key
 }
 ```
 
@@ -334,27 +334,25 @@ With this trait `collect` can be transformed to:
 
 ```scala
 def collect[T, Key](lst: List[T], C: Collectable[T, Key]): Map[Key, T] = 
-	lst.foldLeft(Map.empty[Key, T]){
-        (m, t) => {
-            val key = C.key(t)
-            m + (key -> C.add(m.getOrElse(key, C.empty(key)), t))
-        }
-	}
+  lst.map(x => C.key(x) -> x)
+    .foldLeft(Map.empty[Key, T]){
+      (m, t) => m + (t._1 -> C.add(m.getOrElse(t._1, C.empty(t._1)), t._2))        
+    }
 ```
 
 All is left is to define `Collectable` for both `Measurement` and `Purchase`:
 
 ```scala
 val purColl = new Collectable[Purchase, Currency] {
-    def add(a: Purchase, b: Purchase): Purchase = a.copy(amount = a.amount + b.amount)
-    def empyt(key: Currency): Purchase = Purchase(0.0, key)
-    def key(a: Purchase): Currency = a.currency
+  def add(a: Purchase, b: Purchase): Purchase = a.copy(amount = a.amount + b.amount)
+  def empyt(key: Currency): Purchase = Purchase(0.0, key)
+  def key(a: Purchase): Currency = a.currency
 }
 val measColl = new Collectable[Measurement, String] {
-    def scale(m: Measurement): Measurement = ??? // see above
-    def add(a: Measurement, b: Measurement): Measurement = ??? // see above
-    def empty(key: String): Measurement = scale(Measurement(key, 0.0))
-    def key(m: Measurement): String = m.unit
+  def scale(m: Measurement): Measurement = ??? // see above
+  def add(a: Measurement, b: Measurement): Measurement = ??? // see above
+  def empty(key: String): Measurement = scale(Measurement(key, 0.0))
+  def key(m: Measurement): String = m.unit
 }
 ```
 
