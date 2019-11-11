@@ -6,11 +6,9 @@ Since I've recently struggled trough understanding of the basics of FP, and sinc
 
 #### Disclaimer
 
-Among first thing to learn about functional programming, is that it is programming without side-effects and IO. Well, obviously absolutely functional program will be absolutely useless, so I wouldn't declare FP the new silver bullet, but it is a good way to implement complex business-logic. And in any case there are a several libraries (like [Cats](Cats), or [Scalaz](Scalaz)) that allow you to write all your code in functional paradigm, but this topic is outside of the agenda of the current article.
+Among first thing to learn about functional programming, is that functional code is without IO nor any side-effects and it is immutable. Quite obviously, purely functional program will be absolutely useless, so I wouldn't declare FP the new silver bullet. But it is a good way to implement complex business-logic or core functionality. 
 
-### Pillars of FP
-
-There are several major concepts in functional programming. And once you understand them, you're half way through.
+_There are several libraries like [Cats](Cats) or [Scalaz](Scalaz) defining some helpful types and functions for FP. I personally prefer [Cats](Cats), but the same result can be achieved with [Scalaz](Scalaz) or any other mature FP library._
 
 #### Table of contents
 * [Why we choose functional programming?](#why-we-choose-functional-programming)
@@ -25,20 +23,24 @@ There are several major concepts in functional programming. And once you underst
 
 ## Why we choose functional programming?
 
-Functional programming is a programming paradigm based on [lambda calculus](https://en.wikipedia.org/wiki/Lambda_calculus), which is
+Functional programming is a programming paradigm based on and very close to [lambda calculus](https://en.wikipedia.org/wiki/Lambda_calculus), which is
 
 > ...formal system in mathematical logic for expressing computation...
 > It is a universal model of computation that can be used to simulate any Turing machine.
 
-There are major advantages to use FP:
+Apart from the fact that functional code looks a lot like definition of mathematical model of the problem, there are other major advantages to use FP:
 
-* Functional code is easy reasoning about due to:
+* Functional code is easy reasoning about due to [referential transparency][RP]: a function is referential transparent if by replacing the function call in code by the result of this call (given that the arguments are known), the behavior of the code will stay the same. 
 
-  * [referential transparency][RP]: a function is referential transparent if by replacing the function call in code by the result of evaluation of the function (given that the arguments are known), the behavior of the code wouldn't change. 
+  ```scala
+  def add(x: Int, y: Int): Int = x + y	
+  ```
 
-    Function `def add(x: Int, y: Int): Int = x + y` is referentially transparent. Every call to this function in the code can be replace by its result. It is easier to understand code, that uses thees functions. This also means that no matter the scale, it takes about the same amount of effort to understand the code.
+  Function `add` is referentially transparent. Every call to this function can be replace by its result. 
 
-  * functional code - declarative code.
+  It is easier to understand this kind of code. Referentially transparent function is dependent only on it's arguments and it produces only one result, which is returned. No change is introduced to the system by call to this function. 
+
+  This also means that no matter the scale, it takes about the same amount of effort to understand the code.
 
 * Fewer bugs due to:
     * code is easier to reason about (see above)
@@ -71,27 +73,36 @@ all(List(1, 2, 3, 4)) // 10
 all(List(Set(1, 2, 3), Set(3, 4), Set(5))) // Set(1, 2, 3, 4, 5)
 ```
 
-Then, let's define new type
+Then, if we define new type
 
 ```scala
 type G[T] = List[Option[T]]
 ```
 
-Then, with a pinch of magic, we can use the `all` function with this new type:
+and add a pinch of magic
 
 ```scala
 implicit val fld: Foldable[G] = Foldable[List].compose[Option]
+```
+
+ we can use the `all` function with this new type:
+
+```scala
 all[Int, G](List(Option(1), Option(2), None, Option(4))) // 7
 ```
 
-For more complete example [see here](https://typelevel.org/cats/typeclasses.html), but let's say we have two functions:
+##### Explanation
+
+For more complete example and thorough explanation [see here](https://typelevel.org/cats/typeclasses.html). Here I'll give brief explanation in hope, that all the reset you will understand after finishing the article. 
+
+Let's say we have two functions:
 
 ```scala
 def allInt(lst: List[Int]): Int = lst.foldLeft(0)(_ + _)
 def allSet[A](lst: List[Set[A]]): Set[A] = lst.foldLeft(Set.empty[A])(_ union _)
 ```
 
-Both of these functions are the same except for the type-specific seed element and a method for combining two elements. In mathematics there is a special name for these pairs - [Groups](https://en.wikipedia.org/wiki/Group_(mathematics)). In FP they are called _Monoid_.
+Both of these functions are the same except for the type-specific seed element and a method for combining two elements. In mathematics there is a special name for these pairs (seed - combine) - [Groups](https://en.wikipedia.org/wiki/Group_(mathematics)). In FP they are called _Monoid_.
 So let's get them out and pass this data as a parameter the algorithm (to the function `all`):
 
 ```scala
@@ -101,7 +112,7 @@ trait Monoid[T] {
 }
 def all[T](lst: List[T], m: Monoid[T]): T = lst.foldLeft(m.empty)(m.combine)
 ```
-or with functional library [Cats][Cats] and further optimizations:
+or with functional library [Cats][Cats] (which contains among other things definition of `Monoid`) and further optimizations:
 
 ```scala
 import cats.Monoid
@@ -116,6 +127,15 @@ import cats.{Monoid, Foldable}
 import cats.implicits._
 def all[T: Monoid, F[_]: Foldable](lst: F[T]): T = lst.foldLeft(Monoid[T].empty)(_ |+| _)
 ```
+`Foldable` also have this nice feature: it can be composed. 
+
+```scala
+F[_] <=> Foldable[F]
+G[_] <=> Foldable[G]
+type FG[T] = F[G[T]]
+F[G[_]] <=> Foldable[F].compose[G] <=> Foldable[FG]
+```
+
 [to top][0]
 
 ## Pure functions
@@ -310,11 +330,11 @@ case class Measurements(unit: String, data: Double)
 These measurements may be in completely different units (number of clicks vs. avg time on page) or in different scales - KB/MB. In this case the measurement should be separated by units, but transformed to common scale. The function `add` for `Measurement` will be a little different:
 
 ```scala
-def scale(a: Measurement): Measurement = a.unit.splitAt(1) match {
-  case ("K", u) => Measurement(u, a.data / 1000)
-  case ("M", u) => Measurement(u, a.data / 1000000)
-}
 def add(a: Measurement, b: Measurement): Measurement = {
+  def scale(a: Measurement): Measurement = a.unit.splitAt(1) match {
+    case ("K", u) => Measurement(u, a.data / 1000)
+    case ("M", u) => Measurement(u, a.data / 1000000)
+  }
   val sa = scale(a)
   sa.copy(amount = sa.amount + scale(b).amount)
 }
@@ -349,16 +369,13 @@ val purColl = new Collectable[Purchase, Currency] {
   def key(a: Purchase): Currency = a.currency
 }
 val measColl = new Collectable[Measurement, String] {
-  def scale(m: Measurement): Measurement = ??? // see above
   def add(a: Measurement, b: Measurement): Measurement = ??? // see above
   def empty(key: String): Measurement = scale(Measurement(key, 0.0))
   def key(m: Measurement): String = m.unit
 }
 ```
 
-
-
-More on this can be found [here](https://typelevel.org/cats/typeclasses.html#a-note-on-syntax).
+And thus, we have generic algorithm `collect`, and all type-specific know-hows are encapsulated in the instance of `Collectable` type class. More on this can be found [here](https://typelevel.org/cats/typeclasses.html#a-note-on-syntax).
 
 [to top][0]
 
