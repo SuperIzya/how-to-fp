@@ -383,31 +383,9 @@ And thus, we have generic algorithm `collect`, and all type-specific know-hows a
 
 [to top][0]
 
-
-
-## Desert 
-
-And for desert I'll tell about two of my favorite effects of using functional paradigm.
-
-##### Postponed effects
-
-As a result of the rules above, many times, functional code tends to build an automaton that will later process data, thus **postponing effects**. Think about it. When you use `Iterator[A].map`, `Iterator[A].filter`, etc. you don't have even single value of type `A` yet and the result is new `Iteraror`. This new iterator will perform transformation and/or filtering of the original, but only when it will be iterated over in some point in the future - **end of the world**.
-
-##### Higher-kinded types are side-effects and execution context
-
-`Option[T]` hides side-effect that there may __not__ be any value of type `T`.
-
-`List[T]` hides side-effect that there may be from 0 up to many values of type `T`.
-
-`Future[T]` is obviously execution context, but it also hides side-effects of failed completion of the future.
-
-It helped me a lot when I started looking on types also from this angle - each transformation became also an answer to the questions about results context and side-effects. 
-
-[to top][0]
-
 ## Conclusion
 
-I hope this article will help you to start understanding the concepts of FP, but as always, in order to become able to write functional code, or better yet to start thinking functional, you have to exercise (as with any other language), otherwise it will stay curios academic tricks not applicable to real-life problems.
+In order to become able to write functional code, or better yet to start thinking functional, you have to exercise it (as with any other language), otherwise it will stay curios academic tricks not applicable to real-life problems. I hope this article will help you to make the first step (leap of faith) to _start_ writing functional code.
 
 [to top][0]
 
