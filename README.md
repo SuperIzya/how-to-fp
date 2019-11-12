@@ -177,21 +177,25 @@ Good explanation of tail recursion can be found [here](https://www.scala-exercis
 
 #### State
 
-Another popular use case is calculations based on previous element(s), in other words state. Very thorough discussion of the state and it's use in FP can be found [here](https://typelevel.org/cats/datatypes/state.html), so I will be very brief. This is very counterintuitive part of FP: the state of the [Finite-State-Machine](https://en.wikipedia.org/wiki/Finite-state_machine) should be an outside parameter. But it is against the rules to introduce mutable variable inside function since the function becomes non-pure. With mutable state the function has side-effect built-in. The solution is (as almost always) in the type that will be returned. The function will receive state and return result **and** new state:
+Another popular use case is calculations based on previous element(s), in other words state. This is very counterintuitive part of FP: the state of the [Finite-State-Machine](https://en.wikipedia.org/wiki/Finite-state_machine) should be an outside parameter. But it is against the rules to introduce mutable variable inside function since the function becomes non-pure. With mutable state the function has side-effect built-in. The solution is (as almost always) in the type that will be returned. The function will receive state and return result **and** new state.
+
+Very thorough discussion of the state and it's use in FP can be found [here](https://typelevel.org/cats/datatypes/state.html), but in I'll give a gist. Random generator as it is - it is not functional way. Each call produce new result without arguments. Not a pure function. The solution is to define `random` function as follows:
 
 ```scala
-type State = ???
-type Result = ???
-def foo(s: State): (State, Result) = ???
+def random(prev: Long): Long = prev * 6364136223846793005L + 1442695040888963407L
 ```
 
-As you can see, within this implementation, `foo` is pure function, and given the same `State` will return essentially the same pair `(State, Res)`.
+(see Knuth’s 64-bit [linear congruential generator](https://en.wikipedia.org/wiki/Linear_congruential_generator) for the formula). In this particular case, the state is the same as desired value. But let's say we need to know the total number of calls to `random`:
 
-__Random generator.???!!!!__
+```scala
+final case class Seed(seed: Long, count: Long) 
+def random(s: Seed): (Seed, Long) = {
+    val n = Seed(s.seed * 6364136223846793005L + 1442695040888963407L, count + 1)
+    (n, n.seed)
+}
+```
 
-
-
-
+This way `random` still depends on state while being pure function.
 
 [to top][0]
 
@@ -330,11 +334,11 @@ case class Measurements(unit: String, data: Double)
 These measurements may be in completely different units (number of clicks vs. avg time on page) or in different scales - KB/MB. In this case the measurement should be separated by units, but transformed to common scale. The function `add` for `Measurement` will be a little different:
 
 ```scala
-def add(a: Measurement, b: Measurement): Measurement = {
-  def scale(a: Measurement): Measurement = a.unit.splitAt(1) match {
-    case ("K", u) => Measurement(u, a.data / 1000)
-    case ("M", u) => Measurement(u, a.data / 1000000)
-  }
+def scale(a: Measurement): Measurement = a.unit.splitAt(1) match {
+  case ("K", u) => Measurement(u, a.data / 1000)
+  case ("M", u) => Measurement(u, a.data / 1000000)
+}
+def addMeasurement(a: Measurement, b: Measurement): Measurement = {
   val sa = scale(a)
   sa.copy(amount = sa.amount + scale(b).amount)
 }
@@ -356,7 +360,7 @@ With this trait `collect` can be transformed to:
 def collect[T, Key](lst: List[T], C: Collectable[T, Key]): Map[Key, T] = 
   lst.map(x => C.key(x) -> x)
     .foldLeft(Map.empty[Key, T]){
-      (m, t) => m + (t._1 -> C.add(m.getOrElse(t._1, C.empty(t._1)), t._2))        
+      (m, t) => m + (t._1 -> C.add(t._2, m.getOrElse(t._1, C.empty(t._1))))        
     }
 ```
 
@@ -369,7 +373,7 @@ val purColl = new Collectable[Purchase, Currency] {
   def key(a: Purchase): Currency = a.currency
 }
 val measColl = new Collectable[Measurement, String] {
-  def add(a: Measurement, b: Measurement): Measurement = ??? // see above
+  def add(a: Measurement, b: Measurement): Measurement = addMeasurement(a, b)
   def empty(key: String): Measurement = scale(Measurement(key, 0.0))
   def key(m: Measurement): String = m.unit
 }
@@ -381,23 +385,31 @@ And thus, we have generic algorithm `collect`, and all type-specific know-hows a
 
 
 
-## Postpone effects
+## Desert 
 
-As a result of the rules above, but also considered as one of the pillars of the FP is **postponing effects**. Think about it. When you use `Iterator[A].map`, you don't have even single value of type `A` yet, but still, you act as if you already have. What you loose here is that, after a `Iterator[_].map` you still have `Iterator`, or, in other words, you haven't left the context of the `Iterator`. In effect, you've built some computation for value(s) that doesn't exist yet (until somebody reads from the `Iterator`) and you don't know if you even going to get one (`Iterator` may be empty). And thus we have written some code, in context of the effect (iteration over the `Iterator`), that may or may not happen in some point in the future - **end of the world**.
+And for desert I'll tell about two of my favorite effects of using functional paradigm.
+
+##### Postponed effects
+
+As a result of the rules above, many times, functional code tends to build an automaton that will later process data, thus **postponing effects**. Think about it. When you use `Iterator[A].map`, `Iterator[A].filter`, etc. you don't have even single value of type `A` yet and the result is new `Iteraror`. This new iterator will perform transformation and/or filtering of the original, but only when it will be iterated over in some point in the future - **end of the world**.
+
+##### Higher-kinded types are side-effects and execution context
+
+`Option[T]` hides side-effect that there may __not__ be any value of type `T`.
+
+`List[T]` hides side-effect that there may be from 0 up to many values of type `T`.
+
+`Future[T]` is obviously execution context, but it also hides side-effects of failed completion of the future.
+
+It helped me a lot when I started looking on types also from this angle - each transformation became also an answer to the questions about results context and side-effects. 
 
 [to top][0]
 
-
-
 ## Conclusion
-
-![conclusion](./gifs/conclusion.gif)
 
 I hope this article will help you to start understanding the concepts of FP, but as always, in order to become able to write functional code, or better yet to start thinking functional, you have to exercise (as with any other language), otherwise it will stay curios academic tricks not applicable to real-life problems.
 
 [to top][0]
-
-All images are taken from movie [Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb](https://www.imdb.com/title/tt0057012/)
 
 [0]: #how-i-learned-to-stop-worrying-and-love-fp-in-scala
 [RP]: https://en.wikipedia.org/wiki/Referential_transparency
