@@ -298,7 +298,7 @@ Data type is a type to store data. With data type you describe measurement from 
 
 ##### Type Class
 
-Type class defines algebra (set of operations) for particular data type. Type class interface defines some operations available on some data type. Usually it is **Higher-Kinded Type** (which only means that the `trait` has type-parameter: `trait Monoid[M]`) so that instance of the type class defines operations for one specific data type.
+Type class defines algebra (set of operations) for particular data type. Type class interface defines some operations available on some data type. Usually it is **Higher-Kinded Type** (which only means that the `trait` has type-parameter: `Monoid[M]`) so that instance of the type class defines operations for one specific data type.
 
 In most cases data type is just a way to pass some meaningful data, while type class holds all the know-how of how to handle this type.
 
