@@ -2,7 +2,7 @@
 
 ![pure](./gifs/pure.gif)
 
-Since I've recently struggled trough understanding of the basics of FP, and since the hardest part was to start thinking functional, I've decided to share some tips how to make first steps easier.  
+I've recently struggled trough understanding of the basics of functional programming. All the material, that I've found was either for dummies (very boring) or for people with PhD in lambda calculus. With this article, I'm trying to fill the gap.
 
 #### Disclaimer
 
@@ -13,12 +13,12 @@ _There are several libraries like [Cats](Cats) or [Scalaz](Scalaz) defining some
 #### Table of contents
 * [Why we choose functional programming?](#why-we-choose-functional-programming)
 * [Magic](#magic)
-* [Always produce result. No exceptions](#always-produce-result-no-exceptions)
 * [Pure functions](#pure-functions)
+* [Always produce result. No exceptions](#always-produce-result-no-exceptions)
 * [Immutability](#immutability)
 * [Function - first class citizen](#function---first-class-citizen)
 * [Types](#types)
-* [Postpone effects](#postpone-effects)
+* [Conclusion](#conclusion)
 
 
 ## Why we choose functional programming?
